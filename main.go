@@ -4,10 +4,16 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 )
 
 func main() {
-	listener, err := net.Listen("tcp", ":3030")
+	port := os.Getenv("PORT")
+	if len(port) == 0 {
+		port = "3030"
+	}
+
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatal(err)
 	}
