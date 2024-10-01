@@ -14,6 +14,24 @@ const (
 	StrategyLeastConnections                = "least-connections"
 )
 
+func StrategyFromConfig(config *Config) (Strategy, error) {
+	switch config.Strategy {
+	case StrategyRandom:
+		return NewRandomStrategy(config.Servers), nil
+	case StrategyRoundRobin:
+		return NewRoundRobinStrategy(config.Servers), nil
+	case StrategyWeightedRoundRobin:
+		if len(config.Servers) != len(config.Weights) {
+			return nil, errors.New("weights empty")
+		}
+		return NewWeightedRoundRobinStrategy(config.Servers, config.Weights), nil
+	case StrategyLeastConnections:
+		return NewLeastConnectionsStrategy(config.Servers), nil
+	}
+
+	return nil, errors.New("invalid strategy in config")
+}
+
 type ServerAddr string
 
 type Strategy interface {
@@ -98,4 +116,8 @@ func NewLeastConnectionsStrategy(servers []ServerAddr) *LeastConnectionsStrategy
 	}
 
 	return &LeastConnectionsStrategy{servers, connections}
+}
+
+func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
+	return "", nil
 }
