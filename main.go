@@ -8,6 +8,10 @@ import (
 )
 
 func main() {
+	config, err := LoadConfig("data/config.json")
+	log.Println(config, err)
+	return
+
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = "3030"

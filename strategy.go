@@ -1,24 +1,13 @@
 package main
 
-type StrategyKind int
+type StrategyKind string
 
 const (
-	StrategyRandom StrategyKind = iota
-	StrategyRoundRobin
-	StrategyWeightedRoundRobin
-	StrategyLeastConnections
+	StrategyRandom             StrategyKind = "random"
+	StrategyRoundRobin                      = "round-robin"
+	StrategyWeightedRoundRobin              = "weighted-round-robin"
+	StrategyLeastConnections                = "least-connections"
 )
-
-var strategyName = map[StrategyKind]string{
-	StrategyRandom:             "random",
-	StrategyRoundRobin:         "round-robin",
-	StrategyWeightedRoundRobin: "weighted-round-robin",
-	StrategyLeastConnections:   "least-connections",
-}
-
-func (s StrategyKind) String() string {
-	return strategyName[s]
-}
 
 type ServerAddr string
 
