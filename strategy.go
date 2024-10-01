@@ -36,6 +36,10 @@ type ServerAddr string
 
 type Strategy interface {
 	ServerAddr() (ServerAddr, error)
+
+	// TODO: Methods to notify the strategy about connection opening and closing.
+	// Connect()
+	// Disconnect()
 }
 
 type RandomStrategy struct {
