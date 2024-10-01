@@ -1,5 +1,7 @@
 package main
 
+import "errors"
+
 type StrategyKind string
 
 const (
@@ -30,6 +32,17 @@ type RoundRobinStrategy struct {
 
 func NewRoundRobinStrategy(servers []ServerAddr) *RoundRobinStrategy {
 	return &RoundRobinStrategy{servers, 0}
+}
+
+func (strategy *RoundRobinStrategy) ServerAddr() (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	server := strategy.servers[strategy.nextIndex]
+	strategy.nextIndex = (strategy.nextIndex + 1) % len(strategy.servers)
+
+	return server, nil
 }
 
 type WeightedRoundRobinStrategy struct {
