@@ -25,6 +25,16 @@ func NewRandomStrategy(servers []ServerAddr) *RandomStrategy {
 	return &RandomStrategy{servers}
 }
 
+func (strategy *RandomStrategy) ServerAddr() (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	server := strategy.servers[rand.Intn(len(strategy.servers))]
+
+	return server, nil
+}
+
 type RoundRobinStrategy struct {
 	servers   []ServerAddr
 	nextIndex int
