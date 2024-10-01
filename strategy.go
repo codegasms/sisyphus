@@ -66,6 +66,23 @@ func NewWeightedRoundRobinStrategy(servers []ServerAddr, weights []float32) *Wei
 	return &WeightedRoundRobinStrategy{servers, weights, 0, 0}
 }
 
+func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	server := strategy.servers[strategy.nextIndex]
+	strategy.selectedTimes++
+
+	// TODO: Implement a better weight conversion strategy
+	if strategy.selectedTimes >= int(strategy.weights[strategy.nextIndex]*100) {
+		strategy.nextIndex = (strategy.nextIndex + 1) % len(strategy.servers)
+		strategy.selectedTimes = 0
+	}
+
+	return server, nil
+}
+
 type LeastConnectionsStrategy struct {
 	servers     []ServerAddr
 	connections []int
