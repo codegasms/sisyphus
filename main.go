@@ -7,16 +7,31 @@ import (
 	"os"
 )
 
+func getEnvOr(key, or string) string {
+	value, ok := os.LookupEnv(key)
+	if ok {
+		return value
+	} else {
+		return or
+	}
+}
+
 func main() {
 	config, err := LoadConfig("data/config.json")
-	log.Println(config, err)
-	return
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("Loaded config", config)
 
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		port = "3030"
+	strategy, err := StrategyFromConfig(config)
+	if err != nil {
+		log.Fatal(err)
 	}
 
+	serverAddr, err := strategy.ServerAddr()
+	log.Println(serverAddr)
+
+	port := getEnvOr("PORT", "3030")
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatal(err)
@@ -27,11 +42,16 @@ func main() {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			continue
 		}
 
 		go func(conn net.Conn) {
-			io.Copy(conn, conn)
+			_, err := io.Copy(conn, conn)
+			if err != nil {
+				log.Println(err)
+			}
+			// Close the connection and decrement connection count.
 			conn.Close()
 		}(conn)
 	}
