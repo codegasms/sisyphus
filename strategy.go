@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"math/rand/v2"
+)
 
 type StrategyKind string
 
@@ -30,7 +33,7 @@ func (strategy *RandomStrategy) ServerAddr() (ServerAddr, error) {
 		return "", errors.New("no servers available")
 	}
 
-	server := strategy.servers[rand.Intn(len(strategy.servers))]
+	server := strategy.servers[rand.IntN(len(strategy.servers))]
 
 	return server, nil
 }
