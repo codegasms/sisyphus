@@ -1,2 +1,3 @@
 # sisyphus
-Tiny load balancer in GO
+
+A tiny load balancer in Go.
