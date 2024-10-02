@@ -47,32 +47,35 @@ func BalanceLoad(listener net.Listener, strategy Strategy) {
 			log.Println(err)
 			continue
 		}
-		defer conn.Close()
 
-		go func(conn1 net.Conn) {
-			serverAddr, err := strategy.ServerAddr(conn1.RemoteAddr().String())
-			if err != nil {
-				log.Println("no servers to forward to:", err)
-				return
-			}
-
-			conn2, err := net.Dial("tcp", string(serverAddr))
-			if err != nil {
-				log.Println("couldn't connect to the selected server", serverAddr)
-				return
-			}
-			defer conn2.Close()
-
-			log.Printf("forwarding %v to %v", conn1.RemoteAddr(), serverAddr)
-			strategy.Connected(serverAddr)
-
-			// Decrement the connection count.
-			defer strategy.Disconnected(serverAddr)
-
-			go io.Copy(conn1, conn2)
-			io.Copy(conn2, conn1)
-
-			log.Printf("connection %v to %v closed", conn1.RemoteAddr(), serverAddr)
-		}(conn)
+		go BalanceOneLoad(conn, strategy)
 	}
+}
+
+func BalanceOneLoad(conn1 net.Conn, strategy Strategy) {
+	defer conn1.Close()
+
+	serverAddr, err := strategy.ServerAddr(conn1.RemoteAddr().String())
+	if err != nil {
+		log.Println("no servers to forward to:", err)
+		return
+	}
+
+	conn2, err := net.Dial("tcp", string(serverAddr))
+	if err != nil {
+		log.Println("couldn't connect to the selected server", serverAddr)
+		return
+	}
+	defer conn2.Close()
+
+	log.Printf("forwarding %v to %v", conn1.RemoteAddr(), serverAddr)
+
+	// Increment and defer decrement the connection count.
+	strategy.Connected(serverAddr)
+	defer strategy.Disconnected(serverAddr)
+
+	go io.Copy(conn1, conn2)
+	io.Copy(conn2, conn1)
+
+	log.Printf("connection %v to %v closed", conn1.RemoteAddr(), serverAddr)
 }
