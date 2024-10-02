@@ -28,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	port := getEnvOr("PORT", "3030")
+	port := getEnvOr("PORT", "8000")
 
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
