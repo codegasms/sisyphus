@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const MAX_WAIT int64 = 10
+
 func main() {
 	log.Println("starting load testing")
 
@@ -17,21 +19,27 @@ func main() {
 		log.Fatal("HOST env not set")
 	}
 
+	client := &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives: true,
+		},
+	}
+
 	for {
-		go TestLoad(address)
-		time.Sleep(time.Duration(rand.Int64N(50)) * time.Millisecond)
+		go TestLoad(client, address)
+		time.Sleep(time.Duration(rand.Int64N(MAX_WAIT)) * time.Millisecond)
 	}
 }
 
-func TestLoad(address string) {
-	route := "http://" + address + "/"
-	res, err := http.Get(route)
+func TestLoad(client *http.Client, address string) {
+	url := "http://" + address + "/"
+	resp, err := client.Get(url)
 	if err != nil {
-		log.Println("error while GET", route)
+		log.Println("error while GET", url)
 		return
 	}
-	defer res.Body.Close()
+	defer resp.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	log.Println("GET", route, string(body))
+	body, err := io.ReadAll(resp.Body)
+	log.Println("GET", url, resp.Status, string(body))
 }

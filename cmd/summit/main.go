@@ -12,7 +12,7 @@ type ApiResponse struct {
 }
 
 func LogRequest(req *http.Request) {
-	log.Printf("%v -> %v %v", req.RemoteAddr, req.Method, req.URL)
+	log.Printf("%v -> %v %v %v", req.RemoteAddr, req.Method, req.URL, req.Proto)
 }
 
 func main() {
