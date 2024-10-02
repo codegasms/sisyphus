@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 )
 
 type StrategyKind string
@@ -14,10 +14,32 @@ const (
 	StrategyLeastConnections                = "least-connections"
 )
 
+func StrategyFromConfig(config *Config) (Strategy, error) {
+	switch config.Strategy {
+	case StrategyRandom:
+		return NewRandomStrategy(config.Servers), nil
+	case StrategyRoundRobin:
+		return NewRoundRobinStrategy(config.Servers), nil
+	case StrategyWeightedRoundRobin:
+		if len(config.Servers) != len(config.Weights) {
+			return nil, errors.New("weights empty")
+		}
+		return NewWeightedRoundRobinStrategy(config.Servers, config.Weights), nil
+	case StrategyLeastConnections:
+		return NewLeastConnectionsStrategy(config.Servers), nil
+	}
+
+	return nil, errors.New("invalid strategy in config")
+}
+
 type ServerAddr string
 
 type Strategy interface {
 	ServerAddr() (ServerAddr, error)
+
+	// TODO: Methods to notify the strategy about connection opening and closing.
+	Connected(addr ServerAddr)
+	Disconnected(addr ServerAddr)
 }
 
 const WeightFactor float32 = 100 // Weight Factor for WeightedRoundRobinStrategy
@@ -35,10 +57,13 @@ func (strategy *RandomStrategy) ServerAddr() (ServerAddr, error) {
 		return "", errors.New("no servers available")
 	}
 
-	server := strategy.servers[rand.Intn(len(strategy.servers))]
+	server := strategy.servers[rand.IntN(len(strategy.servers))]
 
 	return server, nil
 }
+
+func (strategy *RandomStrategy) Connected(addr ServerAddr)    {}
+func (strategy *RandomStrategy) Disconnected(addr ServerAddr) {}
 
 type RoundRobinStrategy struct {
 	servers   []ServerAddr
@@ -59,6 +84,9 @@ func (strategy *RoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 
 	return server, nil
 }
+
+func (strategy *RoundRobinStrategy) Connected(addr ServerAddr)    {}
+func (strategy *RoundRobinStrategy) Disconnected(addr ServerAddr) {}
 
 type WeightedRoundRobinStrategy struct {
 	servers       []ServerAddr
@@ -97,6 +125,9 @@ func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 	return server, nil
 }
 
+func (strategy *WeightedRoundRobinStrategy) Connected(addr ServerAddr)    {}
+func (strategy *WeightedRoundRobinStrategy) Disconnected(addr ServerAddr) {}
+
 type LeastConnectionsStrategy struct {
 	servers     []ServerAddr
 	connections []int
@@ -131,3 +162,6 @@ func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
 
 	return server, nil
 }
+
+func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr)    {}
+func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {}
