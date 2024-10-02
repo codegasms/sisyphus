@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"math/rand/v2"
+	"strings"
 )
 
 type StrategyKind string
@@ -13,6 +14,7 @@ const (
 	StrategyRoundRobin                      = "round-robin"
 	StrategyWeightedRoundRobin              = "weighted-round-robin"
 	StrategyLeastConnections                = "least-connections"
+	StrategyIPHash                          = "ip-hash"
 )
 
 func StrategyFromConfig(config *Config) (Strategy, error) {
@@ -26,6 +28,8 @@ func StrategyFromConfig(config *Config) (Strategy, error) {
 			return nil, errors.New("weights empty")
 		}
 		return NewWeightedRoundRobinStrategy(config.Servers, config.Weights), nil
+	case StrategyIPHash:
+		return NewIPHashStrategy(config.Servers), nil
 	case StrategyLeastConnections:
 		return NewLeastConnectionsStrategy(config.Servers), nil
 	}
@@ -36,7 +40,7 @@ func StrategyFromConfig(config *Config) (Strategy, error) {
 type ServerAddr string
 
 type Strategy interface {
-	ServerAddr() (ServerAddr, error)
+	ServerAddr(ClientAddr string) (ServerAddr, error)
 
 	// TODO: Methods to notify the strategy about connection opening and closing.
 	Connected(addr ServerAddr)
@@ -53,7 +57,7 @@ func NewRandomStrategy(servers []ServerAddr) *RandomStrategy {
 	return &RandomStrategy{servers}
 }
 
-func (strategy *RandomStrategy) ServerAddr() (ServerAddr, error) {
+func (strategy *RandomStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
 	if len(strategy.servers) == 0 {
 		return "", errors.New("no servers available")
 	}
@@ -75,7 +79,7 @@ func NewRoundRobinStrategy(servers []ServerAddr) *RoundRobinStrategy {
 	return &RoundRobinStrategy{servers, 0}
 }
 
-func (strategy *RoundRobinStrategy) ServerAddr() (ServerAddr, error) {
+func (strategy *RoundRobinStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
 	if len(strategy.servers) == 0 {
 		return "", errors.New("no servers available")
 	}
@@ -100,7 +104,7 @@ func NewWeightedRoundRobinStrategy(servers []ServerAddr, weights []float32) *Wei
 	return &WeightedRoundRobinStrategy{servers, weights, 0, 0}
 }
 
-func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
+func (strategy *WeightedRoundRobinStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
 	if len(strategy.servers) == 0 {
 		return "", errors.New("no servers available")
 	}
@@ -129,6 +133,36 @@ func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 func (strategy *WeightedRoundRobinStrategy) Connected(addr ServerAddr)    {}
 func (strategy *WeightedRoundRobinStrategy) Disconnected(addr ServerAddr) {}
 
+type IPHashStrategy struct {
+	servers []ServerAddr
+}
+
+func NewIPHashStrategy(servers []ServerAddr) *IPHashStrategy {
+	return &IPHashStrategy{servers}
+}
+
+func (strategy *IPHashStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	addr := strings.Join(strings.Split(ClientAddr, ":")[:len(strings.Split(ClientAddr, ":"))-1], ":")
+
+	// Hash the IP address (Based on the Sum of Bytes of the Client Address) to select a server.
+	// TODO: Implement a better hashing algorithm.
+	hash := 0
+	for i := 0; i < len(addr); i++ {
+		hash += int(addr[i])
+	}
+
+	server := strategy.servers[hash%len(strategy.servers)]
+
+	return server, nil
+}
+
+func (strategy *IPHashStrategy) Connected(addr ServerAddr)    {}
+func (strategy *IPHashStrategy) Disconnected(addr ServerAddr) {}
+
 type LeastConnectionsStrategy struct {
 	servers     []ServerAddr
 	connections []int
@@ -143,7 +177,7 @@ func NewLeastConnectionsStrategy(servers []ServerAddr) *LeastConnectionsStrategy
 	return &LeastConnectionsStrategy{servers, connections}
 }
 
-func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
+func (strategy *LeastConnectionsStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
 	if len(strategy.servers) == 0 {
 		return "", errors.New("no servers available")
 	}
