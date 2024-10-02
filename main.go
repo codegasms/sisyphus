@@ -47,6 +47,7 @@ func BalanceLoad(listener net.Listener, strategy Strategy) {
 			log.Println(err)
 			continue
 		}
+		defer conn.Close()
 
 		go func(conn1 net.Conn) {
 			serverAddr, err := strategy.ServerAddr()
@@ -60,17 +61,18 @@ func BalanceLoad(listener net.Listener, strategy Strategy) {
 				log.Println("couldn't connect to the selected server", serverAddr)
 				return
 			}
+			defer conn2.Close()
 
 			log.Printf("forwarding %v to %v", conn1.RemoteAddr(), serverAddr)
 			strategy.Connected(serverAddr)
 
-			go io.Copy(conn2, conn1)
-			io.Copy(conn1, conn2)
+			// Decrement the connection count.
+			defer strategy.Disconnected(serverAddr)
 
-			// Close the connection and decrement connection count.
-			conn1.Close()
-			conn2.Close()
-			strategy.Disconnected(serverAddr)
+			go io.Copy(conn1, conn2)
+			io.Copy(conn2, conn1)
+
+			log.Printf("connection %v to %v closed", conn1.RemoteAddr(), serverAddr)
 		}(conn)
 	}
 }
