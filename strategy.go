@@ -38,8 +38,8 @@ type Strategy interface {
 	ServerAddr() (ServerAddr, error)
 
 	// TODO: Methods to notify the strategy about connection opening and closing.
-	// Connect()
-	// Disconnect()
+	Connected(addr ServerAddr)
+	Disconnected(addr ServerAddr)
 }
 
 type RandomStrategy struct {
@@ -60,6 +60,9 @@ func (strategy *RandomStrategy) ServerAddr() (ServerAddr, error) {
 	return server, nil
 }
 
+func (strategy *RandomStrategy) Connected(addr ServerAddr)    {}
+func (strategy *RandomStrategy) Disconnected(addr ServerAddr) {}
+
 type RoundRobinStrategy struct {
 	servers   []ServerAddr
 	nextIndex int
@@ -79,6 +82,9 @@ func (strategy *RoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 
 	return server, nil
 }
+
+func (strategy *RoundRobinStrategy) Connected(addr ServerAddr)    {}
+func (strategy *RoundRobinStrategy) Disconnected(addr ServerAddr) {}
 
 type WeightedRoundRobinStrategy struct {
 	servers       []ServerAddr
@@ -108,6 +114,9 @@ func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 	return server, nil
 }
 
+func (strategy *WeightedRoundRobinStrategy) Connected(addr ServerAddr)    {}
+func (strategy *WeightedRoundRobinStrategy) Disconnected(addr ServerAddr) {}
+
 type LeastConnectionsStrategy struct {
 	servers     []ServerAddr
 	connections []int
@@ -125,3 +134,6 @@ func NewLeastConnectionsStrategy(servers []ServerAddr) *LeastConnectionsStrategy
 func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
 	return "", nil
 }
+
+func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr)    {}
+func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {}
