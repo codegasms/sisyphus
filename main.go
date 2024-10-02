@@ -28,9 +28,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	serverAddr, err := strategy.ServerAddr()
-	log.Println(serverAddr)
-
 	port := getEnvOr("PORT", "3030")
 
 	listener, err := net.Listen("tcp", ":"+port)
@@ -64,10 +61,11 @@ func BalanceLoad(listener net.Listener, strategy Strategy) {
 				return
 			}
 
+			log.Printf("forwarding %v to %v", conn1.RemoteAddr(), serverAddr)
 			strategy.Connected(serverAddr)
 
 			go io.Copy(conn2, conn1)
-			go io.Copy(conn1, conn2)
+			io.Copy(conn1, conn2)
 
 			// Close the connection and decrement connection count.
 			conn1.Close()
