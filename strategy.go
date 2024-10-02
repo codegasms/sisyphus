@@ -163,5 +163,13 @@ func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
 	return server, nil
 }
 
-func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr)    {}
-func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {}
+func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr) {}
+
+func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {
+	for i, serverAddr := range strategy.servers {
+		if serverAddr == addr && strategy.connections[i] > 0 {
+			strategy.connections[i]--
+			break
+		}
+	}
+}
