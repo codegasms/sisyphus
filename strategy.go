@@ -10,11 +10,12 @@ import (
 type StrategyKind string
 
 const (
-	StrategyRandom             StrategyKind = "random"
-	StrategyRoundRobin                      = "round-robin"
-	StrategyWeightedRoundRobin              = "weighted-round-robin"
-	StrategyLeastConnections                = "least-connections"
-	StrategyIPHash                          = "ip-hash"
+	StrategyRandom                   StrategyKind = "random"
+	StrategyRoundRobin                            = "round-robin"
+	StrategyWeightedRoundRobin                    = "weighted-round-robin"
+	StrategyIPHash                                = "ip-hash"
+	StrategyLeastConnections                      = "least-connections"
+	StrategyweightedLeastConnections              = "weighted-least-connections"
 )
 
 func StrategyFromConfig(config *Config) (Strategy, error) {
@@ -32,6 +33,11 @@ func StrategyFromConfig(config *Config) (Strategy, error) {
 		return NewIPHashStrategy(config.Servers), nil
 	case StrategyLeastConnections:
 		return NewLeastConnectionsStrategy(config.Servers), nil
+	case StrategyweightedLeastConnections:
+		if len(config.Servers) != len(config.Weights) {
+			return nil, errors.New("weights empty")
+		}
+		return WeightedNewLeastConnectionsStrategy(config.Servers, config.Weights), nil
 	}
 
 	return nil, errors.New("invalid strategy in config")
@@ -101,6 +107,16 @@ type WeightedRoundRobinStrategy struct {
 }
 
 func NewWeightedRoundRobinStrategy(servers []ServerAddr, weights []float32) *WeightedRoundRobinStrategy {
+	// Normalize the weights to 1
+	sum := float32(0)
+	for _, weight := range weights {
+		sum += weight
+	}
+
+	for i, weight := range weights {
+		weights[i] = weight / sum
+	}
+
 	return &WeightedRoundRobinStrategy{servers, weights, 0, 0}
 }
 
@@ -111,16 +127,6 @@ func (strategy *WeightedRoundRobinStrategy) ServerAddr(ClientAddr string) (Serve
 
 	server := strategy.servers[strategy.nextIndex]
 	strategy.selectedTimes++
-
-	// Normalise the weights to 1
-	sum := float32(0)
-	for _, weight := range strategy.weights {
-		sum += weight
-	}
-
-	for i, weight := range strategy.weights {
-		strategy.weights[i] = weight / sum
-	}
 
 	if strategy.selectedTimes >= int(strategy.weights[strategy.nextIndex]*WeightFactor) {
 		strategy.nextIndex = (strategy.nextIndex + 1) % len(strategy.servers)
@@ -202,6 +208,75 @@ func (strategy *LeastConnectionsStrategy) ServerAddr(ClientAddr string) (ServerA
 func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr) {}
 
 func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {
+	log.Println(strategy.connections)
+	for i, serverAddr := range strategy.servers {
+		if serverAddr == addr && strategy.connections[i] > 0 {
+			strategy.connections[i]--
+			break
+		}
+	}
+	log.Println(strategy.connections)
+}
+
+type WeightedLeastConnectionsStrategy struct {
+	servers     []ServerAddr
+	connections []int
+	weights     []float32
+}
+
+func WeightedNewLeastConnectionsStrategy(servers []ServerAddr, weights []float32) *WeightedLeastConnectionsStrategy {
+	connections := make([]int, len(servers))
+	for i := range connections {
+		connections[i] = 0
+	}
+
+	// Normalize the weights to 1
+	sum := float32(0)
+	for _, weight := range weights {
+		sum += weight
+	}
+
+	for i, weight := range weights {
+		weights[i] = weight / sum
+	}
+
+	return &WeightedLeastConnectionsStrategy{servers, connections, weights}
+}
+
+func (strategy *WeightedLeastConnectionsStrategy) ServerAddr(ClientAddr string) (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	maxRatio := float32(0.0)
+	maxIndex := 0
+
+	totalConnections := 0
+	for _, connections := range strategy.connections {
+		totalConnections += connections
+	}
+
+	// Below code works for Least Connection Strategy
+	for i, connections := range strategy.connections {
+		normalizedConnections := float32(connections) / (float32(totalConnections) + 1e-6)
+
+		ratio := float32(strategy.weights[i]) / (float32(normalizedConnections) + 1e-6)
+
+		if ratio > maxRatio {
+			maxRatio = ratio
+			maxIndex = i
+		}
+	}
+
+	server := strategy.servers[maxIndex]
+	strategy.connections[maxIndex]++
+
+	return server, nil
+}
+
+func (strategy *WeightedLeastConnectionsStrategy) Connected(addr ServerAddr) {}
+
+func (strategy *WeightedLeastConnectionsStrategy) Disconnected(addr ServerAddr) {
 	log.Println(strategy.connections)
 	for i, serverAddr := range strategy.servers {
 		if serverAddr == addr && strategy.connections[i] > 0 {
