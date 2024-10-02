@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"math/rand"
+)
 
 type StrategyKind string
 
@@ -95,4 +98,25 @@ func NewLeastConnectionsStrategy(servers []ServerAddr) *LeastConnectionsStrategy
 	}
 
 	return &LeastConnectionsStrategy{servers, connections}
+}
+
+func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	minConnections := strategy.connections[0]
+	minIndex := 0
+
+	for i, connections := range strategy.connections {
+		if connections < minConnections {
+			minConnections = connections
+			minIndex = i
+		}
+	}
+
+	server := strategy.servers[minIndex]
+	strategy.connections[minIndex]++
+
+	return server, nil
 }
