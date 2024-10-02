@@ -42,6 +42,8 @@ type Strategy interface {
 	Disconnected(addr ServerAddr)
 }
 
+const WeightFactor float32 = 100 // Weight Factor for WeightedRoundRobinStrategy
+
 type RandomStrategy struct {
 	servers []ServerAddr
 }
@@ -105,8 +107,17 @@ func (strategy *WeightedRoundRobinStrategy) ServerAddr() (ServerAddr, error) {
 	server := strategy.servers[strategy.nextIndex]
 	strategy.selectedTimes++
 
-	// TODO: Implement a better weight conversion strategy
-	if strategy.selectedTimes >= int(strategy.weights[strategy.nextIndex]*100) {
+	// Normalise the weights to 1
+	sum := float32(0)
+	for _, weight := range strategy.weights {
+		sum += weight
+	}
+
+	for i, weight := range strategy.weights {
+		strategy.weights[i] = weight / sum
+	}
+
+	if strategy.selectedTimes >= int(strategy.weights[strategy.nextIndex]*WeightFactor) {
 		strategy.nextIndex = (strategy.nextIndex + 1) % len(strategy.servers)
 		strategy.selectedTimes = 0
 	}
@@ -132,7 +143,24 @@ func NewLeastConnectionsStrategy(servers []ServerAddr) *LeastConnectionsStrategy
 }
 
 func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
-	return "", nil
+	if len(strategy.servers) == 0 {
+		return "", errors.New("no servers available")
+	}
+
+	minConnections := strategy.connections[0]
+	minIndex := 0
+
+	for i, connections := range strategy.connections {
+		if connections < minConnections {
+			minConnections = connections
+			minIndex = i
+		}
+	}
+
+	server := strategy.servers[minIndex]
+	strategy.connections[minIndex]++
+
+	return server, nil
 }
 
 func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr)    {}
