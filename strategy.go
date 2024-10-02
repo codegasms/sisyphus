@@ -146,7 +146,8 @@ func (strategy *IPHashStrategy) ServerAddr(ClientAddr string) (ServerAddr, error
 		return "", errors.New("no servers available")
 	}
 
-	addr := strings.Join(strings.Split(ClientAddr, ":")[:len(strings.Split(ClientAddr, ":"))-1], ":")
+	fragments := strings.Split(ClientAddr, ":")
+	addr := strings.Join(fragments[:len(fragments)-1], ":")
 
 	// Hash the IP address (Based on the Sum of Bytes of the Client Address) to select a server.
 	// TODO: Implement a better hashing algorithm.
