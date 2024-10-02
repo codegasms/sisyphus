@@ -50,7 +50,7 @@ func BalanceLoad(listener net.Listener, strategy Strategy) {
 		defer conn.Close()
 
 		go func(conn1 net.Conn) {
-			serverAddr, err := strategy.ServerAddr()
+			serverAddr, err := strategy.ServerAddr(conn1.RemoteAddr().String())
 			if err != nil {
 				log.Println("no servers to forward to:", err)
 				return
