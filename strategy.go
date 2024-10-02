@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"math/rand/v2"
 )
 
@@ -166,10 +167,12 @@ func (strategy *LeastConnectionsStrategy) ServerAddr() (ServerAddr, error) {
 func (strategy *LeastConnectionsStrategy) Connected(addr ServerAddr) {}
 
 func (strategy *LeastConnectionsStrategy) Disconnected(addr ServerAddr) {
+	log.Println(strategy.connections)
 	for i, serverAddr := range strategy.servers {
 		if serverAddr == addr && strategy.connections[i] > 0 {
 			strategy.connections[i]--
 			break
 		}
 	}
+	log.Println(strategy.connections)
 }
